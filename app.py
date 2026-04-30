@@ -40,11 +40,16 @@ logger = logging.getLogger("NSFP")
 # ─── CONFIGURATION ──────────────────────────────────────────
 def load_database_config():
     """Read database settings from local env vars or Railway MySQL variables."""
-    database_url = (
-        os.getenv("DATABASE_URL")
-        or os.getenv("MYSQL_URL")
-        or os.getenv("MYSQL_PUBLIC_URL")
-    )
+    database_url = None
+    for env_name in ("MYSQL_URL", "MYSQL_PUBLIC_URL", "DATABASE_URL"):
+        candidate = os.getenv(env_name)
+        if not candidate:
+            continue
+        parsed_candidate = urlparse(candidate)
+        if parsed_candidate.scheme.startswith("mysql"):
+            database_url = candidate
+            break
+        logger.warning("Ignoring non-MySQL %s for MySQL connector.", env_name)
 
     if database_url:
         parsed = urlparse(database_url)
@@ -254,6 +259,17 @@ def beneficiaries_has_created_at(cur):
 def beneficiary_created_at_select(cur):
     return "b.created_at" if beneficiaries_has_created_at(cur) else "NULL AS created_at"
 
+
+def initialize_database():
+    """Best-effort startup schema repair for Railway and local deployments."""
+    try:
+        db = get_db()
+        ensure_database_schema(db)
+        db.close()
+        logger.info("Database schema is ready.")
+    except Exception as e:
+        logger.error(f"Database initialization failed: {e}")
+
 # SQLAlchemy engine for pandas read_sql
 _db_url = (
     f"mysql+mysqlconnector://{quote_plus(Config.DB_USER)}:"
@@ -268,6 +284,8 @@ try:
 except Exception as e:
     logger.error(f"❌ Failed to load model: {e}")
     model = None
+
+initialize_database()
 
 
 def load_chart_fonts():
