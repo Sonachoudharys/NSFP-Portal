@@ -267,6 +267,35 @@
             box-shadow: 0 0 0 3px rgba(255,165,0,0.08);
         }
 
+        .password-input { padding-right: 50px !important; }
+
+        .password-toggle {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 34px;
+            height: 34px;
+            border: 0;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.06);
+            color: rgba(255,255,255,0.72);
+            cursor: pointer;
+            font-size: 15px;
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+
+        .password-toggle:hover,
+        .password-toggle:focus {
+            background: rgba(255,165,0,0.14);
+            color: #FFD700;
+            outline: none;
+        }
+
         /* Login button */
         .login-btn {
             width: 100%;
@@ -408,7 +437,8 @@
                 <label>Password</label>
                 <div class="field-wrap">
                     <span class="field-icon">🔑</span>
-                    <input type="password" name="password" placeholder="Enter your password" required autocomplete="current-password">
+                    <input class="password-input" id="passwordInput" type="password" name="password" placeholder="Enter your password" required autocomplete="current-password">
+                    <button class="password-toggle" id="passwordToggle" type="button" aria-label="Show password" title="Show password">👁</button>
                 </div>
             </div>
 
@@ -428,5 +458,19 @@
 </div>
 
 <script src="{{ url_for('static', filename='script.js') }}"></script>
+<script>
+    const passwordInput = document.getElementById("passwordInput");
+    const passwordToggle = document.getElementById("passwordToggle");
+
+    if (passwordInput && passwordToggle) {
+        passwordToggle.addEventListener("click", function () {
+            const isHidden = passwordInput.type === "password";
+            passwordInput.type = isHidden ? "text" : "password";
+            passwordToggle.textContent = isHidden ? "🙈" : "👁";
+            passwordToggle.setAttribute("aria-label", isHidden ? "Hide password" : "Show password");
+            passwordToggle.setAttribute("title", isHidden ? "Hide password" : "Show password");
+        });
+    }
+</script>
 </body>
 </html>

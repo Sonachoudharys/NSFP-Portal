@@ -16,6 +16,7 @@ from flask import (
     redirect, session, send_file, url_for
 )
 import mysql.connector
+from mysql.connector import errorcode
 import pandas as pd
 import joblib
 from fpdf import FPDF
@@ -65,6 +66,8 @@ def load_database_config():
 
 
 DB_CONFIG = load_database_config()
+DEFAULT_ADMIN_USERNAME = "sona2026"
+DEFAULT_ADMIN_PASSWORD = "Papa9829"
 
 
 class Config:
@@ -92,14 +95,118 @@ os.makedirs(Config.STATIC_DIR, exist_ok=True)
 # ─── DATABASE ────────────────────────────────────────────────
 def get_db():
     """Return a fresh MySQL connection."""
-    return mysql.connector.connect(
-        host=Config.DB_HOST,
-        port=Config.DB_PORT,
-        user=Config.DB_USER,
-        password=Config.DB_PASS,
-        database=Config.DB_NAME,
-        connection_timeout=10,
-    )
+    try:
+        return mysql.connector.connect(
+            host=Config.DB_HOST,
+            port=Config.DB_PORT,
+            user=Config.DB_USER,
+            password=Config.DB_PASS,
+            database=Config.DB_NAME,
+            connection_timeout=10,
+        )
+    except mysql.connector.Error as e:
+        if e.errno != errorcode.ER_BAD_DB_ERROR:
+            raise
+
+        setup_db = mysql.connector.connect(
+            host=Config.DB_HOST,
+            port=Config.DB_PORT,
+            user=Config.DB_USER,
+            password=Config.DB_PASS,
+            connection_timeout=10,
+        )
+        setup_cur = setup_db.cursor()
+        setup_cur.execute(f"CREATE DATABASE IF NOT EXISTS `{Config.DB_NAME}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
+        setup_cur.close()
+        setup_db.close()
+
+        return mysql.connector.connect(
+            host=Config.DB_HOST,
+            port=Config.DB_PORT,
+            user=Config.DB_USER,
+            password=Config.DB_PASS,
+            database=Config.DB_NAME,
+            connection_timeout=10,
+        )
+
+
+def ensure_database_schema(db):
+    """Create the small app schema if Railway MySQL starts empty."""
+    cur = db.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS states (
+            state_id INT AUTO_INCREMENT PRIMARY KEY,
+            state_name VARCHAR(100) NOT NULL,
+            state_code VARCHAR(5),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY uniq_state_name (state_name)
+        ) ENGINE=InnoDB
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS admin_users (
+            admin_id INT AUTO_INCREMENT PRIMARY KEY,
+            username VARCHAR(50) UNIQUE NOT NULL,
+            password_hash VARCHAR(255) NOT NULL,
+            full_name VARCHAR(100),
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_login TIMESTAMP NULL
+        ) ENGINE=InnoDB
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS beneficiaries (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            aadhaar BIGINT NOT NULL,
+            age TINYINT UNSIGNED NOT NULL,
+            income INT UNSIGNED NOT NULL,
+            schemes_taken TINYINT UNSIGNED NOT NULL DEFAULT 0,
+            fraud_predicted TINYINT(1) NOT NULL DEFAULT 0,
+            confidence_score FLOAT,
+            state_id INT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+            FOREIGN KEY (state_id) REFERENCES states(state_id) ON DELETE RESTRICT,
+            INDEX idx_fraud (fraud_predicted),
+            INDEX idx_state (state_id),
+            INDEX idx_created (created_at)
+        ) ENGINE=InnoDB
+    """)
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS audit_log (
+            log_id INT AUTO_INCREMENT PRIMARY KEY,
+            admin_user VARCHAR(50),
+            action VARCHAR(100),
+            details TEXT,
+            ip_address VARCHAR(45),
+            logged_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_user (admin_user),
+            INDEX idx_time (logged_at)
+        ) ENGINE=InnoDB
+    """)
+
+    states = [
+        ("Rajasthan", "RJ"),
+        ("Uttar Pradesh", "UP"),
+        ("Madhya Pradesh", "MP"),
+        ("Delhi", "DL"),
+        ("Bihar", "BR"),
+        ("Haryana", "HR"),
+        ("Gujarat", "GJ"),
+        ("Karnataka", "KA"),
+    ]
+    cur.executemany("""
+        INSERT INTO states (state_name, state_code)
+        VALUES (%s, %s)
+        ON DUPLICATE KEY UPDATE state_code = VALUES(state_code)
+    """, states)
+    cur.execute("""
+        INSERT INTO admin_users (username, password_hash, full_name)
+        VALUES (%s, SHA2(%s, 256), %s)
+        ON DUPLICATE KEY UPDATE
+            password_hash = VALUES(password_hash),
+            full_name = VALUES(full_name)
+    """, (DEFAULT_ADMIN_USERNAME, DEFAULT_ADMIN_PASSWORD, "Sona Choudhary"))
+    db.commit()
+    cur.close()
 
 
 def beneficiaries_has_created_at(cur):
@@ -332,6 +439,7 @@ def login():
 
     try:
         db  = get_db()
+        ensure_database_schema(db)
         cur = db.cursor()
         cur.execute(
             "SELECT password_hash FROM admin_users WHERE username = %s",
