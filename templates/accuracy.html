@@ -1,0 +1,97 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">🤖 Model <span>Performance</span></h1>
+        <p class="page-desc">IsolationForest anomaly detection — training metrics and evaluation results</p>
+    </div>
+</div>
+
+{% if error %}
+<div class="predict-result" style="display:block;margin-bottom:18px;">{{ error }}</div>
+{% endif %}
+
+<!-- METRIC CARDS -->
+<div class="stats-grid">
+    <div class="stat-card stat-total" style="animation-delay:0s">
+        <div class="stat-icon">🎯</div>
+        <div class="stat-body">
+            <div class="stat-label">Accuracy</div>
+            <div class="stat-value" id="accVal" data-target="{{ metrics.accuracy }}">0%</div>
+            <div class="stat-change">On test dataset</div>
+        </div>
+    </div>
+    <div class="stat-card stat-genuine" style="animation-delay:0.1s">
+        <div class="stat-icon">📐</div>
+        <div class="stat-body">
+            <div class="stat-label">Precision</div>
+            <div class="stat-value" id="precVal" data-target="{{ metrics.precision }}">0%</div>
+            <div class="stat-change">True positive rate</div>
+        </div>
+    </div>
+    <div class="stat-card stat-fraud" style="animation-delay:0.2s">
+        <div class="stat-icon">🔁</div>
+        <div class="stat-body">
+            <div class="stat-label">Recall</div>
+            <div class="stat-value" id="recVal" data-target="{{ metrics.recall }}">0%</div>
+            <div class="stat-change">Fraud caught</div>
+        </div>
+    </div>
+    <div class="stat-card stat-ai" style="animation-delay:0.3s">
+        <div class="stat-icon">⚖️</div>
+        <div class="stat-body">
+            <div class="stat-label">F1 Score</div>
+            <div class="stat-value" id="f1Val" data-target="{{ metrics.f1 }}">0%</div>
+            <div class="stat-change">Harmonic mean</div>
+        </div>
+    </div>
+</div>
+
+<!-- CHARTS -->
+<div class="content-grid">
+    <div class="panel">
+        <div class="panel-header"><h3>Confusion Matrix</h3><span class="panel-badge">Test Set</span></div>
+        <div style="text-align:center;padding:20px;">
+            <img src="/static/confusion_matrix.png?v={{ chart_version }}" alt="Confusion matrix" style="max-width:100%;border-radius:12px;border:1px solid var(--border);">
+        </div>
+    </div>
+    <div class="panel">
+        <div class="panel-header"><h3>Accuracy Chart</h3><span class="panel-badge">Training</span></div>
+        <div style="text-align:center;padding:20px;">
+            <img src="/static/accuracy_chart.png?v={{ chart_version }}" alt="Accuracy chart" style="max-width:100%;border-radius:12px;border:1px solid var(--border);">
+        </div>
+    </div>
+</div>
+
+<!-- Model Info -->
+<div class="panel" style="margin-top:20px;">
+    <div class="panel-header"><h3>🔬 Model Configuration</h3><span class="panel-badge">IsolationForest</span></div>
+    <div class="model-info-grid">
+        <div class="model-info-item"><span class="mi-label">Algorithm</span><span class="mi-val">IsolationForest</span></div>
+        <div class="model-info-item"><span class="mi-label">Features</span><span class="mi-val">Age, Income, Schemes Taken</span></div>
+        <div class="model-info-item"><span class="mi-label">Train/Test Split</span><span class="mi-val">80% / 20%</span></div>
+        <div class="model-info-item"><span class="mi-label">Framework</span><span class="mi-val">scikit-learn</span></div>
+        <div class="model-info-item"><span class="mi-label">Serialization</span><span class="mi-val">joblib (.pkl)</span></div>
+        <div class="model-info-item"><span class="mi-label">Last Trained</span><span class="mi-val">2026</span></div>
+    </div>
+</div>
+
+<script>
+// Animate metric counters
+function animateValue(id, target, suffix='%') {
+    const el = document.getElementById(id);
+    let val = 0;
+    const step = target / 50;
+    const t = setInterval(() => {
+        val = Math.min(val + step, target);
+        el.textContent = Math.round(val) + suffix;
+        if (val >= target) clearInterval(t);
+    }, 20);
+}
+document.querySelectorAll('.stat-value[data-target]').forEach(el => {
+    animateValue(el.id, Number(el.dataset.target) || 0);
+});
+</script>
+
+{% endblock %}

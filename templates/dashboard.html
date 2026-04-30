@@ -1,0 +1,242 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">📊 Fraud Detection <span>Dashboard</span></h1>
+        <p class="page-desc">Real-time AI-powered beneficiary monitoring across all registered states</p>
+    </div>
+    <div class="page-actions">
+        <a href="/report" class="btn-primary">⬇ Export Report</a>
+    </div>
+</div>
+
+<!-- STAT CARDS -->
+<div class="stats-grid">
+    <div class="stat-card stat-total" style="animation-delay:0s">
+        <div class="stat-icon">👥</div>
+        <div class="stat-body">
+            <div class="stat-label">Total Beneficiaries</div>
+            <div class="stat-value" data-target="{{ total }}">0</div>
+            <div class="stat-change">All registered entries</div>
+        </div>
+        <div class="stat-ring total-ring"></div>
+    </div>
+
+    <div class="stat-card stat-fraud" style="animation-delay:0.1s">
+        <div class="stat-icon">🚨</div>
+        <div class="stat-body">
+            <div class="stat-label">Fraud Detected</div>
+            <div class="stat-value" data-target="{{ fraud }}">0</div>
+            <div class="stat-change fraud-rate">
+                {% if total > 0 %}{{ "%.1f"|format(fraud/total*100) }}% fraud rate{% else %}No data yet{% endif %}
+            </div>
+        </div>
+        <div class="stat-ring fraud-ring"></div>
+    </div>
+
+    <div class="stat-card stat-genuine" style="animation-delay:0.2s">
+        <div class="stat-icon">✅</div>
+        <div class="stat-body">
+            <div class="stat-label">Genuine Beneficiaries</div>
+            <div class="stat-value" data-target="{{ genuine }}">0</div>
+            <div class="stat-change">Cleared by AI model</div>
+        </div>
+        <div class="stat-ring genuine-ring"></div>
+    </div>
+
+    <div class="stat-card stat-ai" style="animation-delay:0.3s">
+        <div class="stat-icon">🤖</div>
+        <div class="stat-body">
+            <div class="stat-label">AI Model Status</div>
+            <div class="stat-value" style="font-size:22px;letter-spacing:1px;">ACTIVE</div>
+            <div class="stat-change" style="color:#34d399;">IsolationForest · Running</div>
+        </div>
+        <div class="stat-ring ai-ring"></div>
+    </div>
+</div>
+
+<!-- GRID: FORM + CHART -->
+<div class="content-grid">
+
+    <!-- ADD BENEFICIARY FORM -->
+    <div class="panel form-panel">
+        <div class="panel-header">
+            <h3>➕ Add Beneficiary</h3>
+            <span class="panel-badge">AI Prediction</span>
+        </div>
+
+        <form action="/predict" method="post" class="predict-form" id="predictForm">
+            <div class="input-row">
+                <div class="input-group">
+                    <label>Age</label>
+                    <div class="input-wrap">
+                        <span class="input-icon">👤</span>
+                        <input type="number" name="age" placeholder="e.g. 35" min="1" max="120" required>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Annual Income (₹)</label>
+                    <div class="input-wrap">
+                        <span class="input-icon">₹</span>
+                        <input type="number" name="income" placeholder="e.g. 40000" min="0" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="input-row">
+                <div class="input-group">
+                    <label>Schemes Enrolled</label>
+                    <div class="input-wrap">
+                        <span class="input-icon">📋</span>
+                        <input type="number" name="schemes" placeholder="e.g. 3" min="0" required>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>State</label>
+                    <div class="input-wrap">
+                        <span class="input-icon">📍</span>
+                        <select name="state" required>
+                            <option value="">Select State ({{ states|length }} available)</option>
+                            {% for s in states %}
+                            <option value="{{ s.state_id }}">{{ s.state_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="submit-btn" id="submitBtn">
+                <span class="btn-text">🔍 Run AI Fraud Check</span>
+                <span class="btn-loader" style="display:none;">⏳ Analyzing...</span>
+            </button>
+        </form>
+
+        <!-- Result display -->
+        <div class="predict-result" id="predictResult" {% if result %}style="display:block;"{% else %}style="display:none;"{% endif %}>
+            {% if result %}{{ result }}{% endif %}
+        </div>
+    </div>
+
+    <!-- CHARTS PANEL -->
+    <div class="panel chart-panel">
+        <div class="panel-header">
+            <h3>📈 Fraud Analytics</h3>
+            <span class="panel-badge">Live Data</span>
+        </div>
+
+        <div class="chart-tabs">
+            <button class="chart-tab active" onclick="switchChart('bar', this)">Bar</button>
+            <button class="chart-tab" onclick="switchChart('doughnut', this)">Donut</button>
+        </div>
+
+        <div class="chart-container">
+            <canvas id="fraudChart"></canvas>
+        </div>
+
+        <div class="chart-legend">
+            <div class="legend-item"><span class="legend-dot" style="background:#3b82f6;"></span>Total</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#ef4444;"></span>Fraud</div>
+            <div class="legend-item"><span class="legend-dot" style="background:#22c55e;"></span>Genuine</div>
+        </div>
+    </div>
+
+</div>
+
+<!-- RECORDS TABLE -->
+<div class="panel table-section">
+    <div class="panel-header">
+        <h3>📂 Beneficiary Database Records</h3>
+        <div style="display:flex;gap:10px;align-items:center;">
+            <input type="text" id="tableSearch" placeholder="🔍 Search records..." class="table-search" onkeyup="filterTable()">
+            <span class="panel-badge">{{ total }} Records</span>
+        </div>
+    </div>
+    <div class="table-scroll">
+        {{ tables|safe }}
+    </div>
+</div>
+
+<script>
+// Animated counters
+document.querySelectorAll('.stat-value[data-target]').forEach(el => {
+    const target = parseInt(el.dataset.target) || 0;
+    let count = 0;
+    const step = Math.max(1, Math.floor(target / 40));
+    const timer = setInterval(() => {
+        count = Math.min(count + step, target);
+        el.textContent = count.toLocaleString('en-IN');
+        if (count >= target) clearInterval(timer);
+    }, 30);
+});
+
+// Chart
+const chartData = {
+    labels: ['Total', 'Fraud', 'Genuine'],
+    datasets: [{
+        data: [{{ total }}, {{ fraud }}, {{ genuine }}],
+        backgroundColor: ['#3b82f6', '#ef4444', '#22c55e'],
+        borderColor: ['#1d4ed8', '#b91c1c', '#15803d'],
+        borderWidth: 2,
+        borderRadius: 8,
+    }]
+};
+
+let myChart;
+function buildChart(type) {
+    const ctx = document.getElementById('fraudChart');
+    if (myChart) myChart.destroy();
+    myChart = new Chart(ctx, {
+        type: type,
+        data: {
+            labels: chartData.labels,
+            datasets: [{
+                label: type === 'bar' ? 'Count' : '',
+                data: chartData.datasets[0].data,
+                backgroundColor: chartData.datasets[0].backgroundColor,
+                borderColor: chartData.datasets[0].borderColor,
+                borderWidth: chartData.datasets[0].borderWidth,
+                borderRadius: type === 'bar' ? 8 : 0,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { display: type === 'doughnut', labels: { color: 'var(--text-muted)', font: { family: 'DM Sans' } } },
+                tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.raw.toLocaleString('en-IN')}` } }
+            },
+            scales: type === 'bar' ? {
+                x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'var(--text-muted)' } },
+                y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'var(--text-muted)' } }
+            } : {}
+        }
+    });
+}
+
+buildChart('bar');
+
+function switchChart(type, btn) {
+    document.querySelectorAll('.chart-tab').forEach(t => t.classList.remove('active'));
+    btn.classList.add('active');
+    buildChart(type);
+}
+
+// Table search
+function filterTable() {
+    const q = document.getElementById('tableSearch').value.toLowerCase();
+    document.querySelectorAll('.table-scroll table tbody tr').forEach(tr => {
+        tr.style.display = tr.textContent.toLowerCase().includes(q) ? '' : 'none';
+    });
+}
+
+// Form submission
+document.getElementById('predictForm').addEventListener('submit', function(e) {
+    const btn = document.getElementById('submitBtn');
+    btn.querySelector('.btn-text').style.display = 'none';
+    btn.querySelector('.btn-loader').style.display = 'inline';
+    btn.disabled = true;
+});
+</script>
+
+{% endblock %}

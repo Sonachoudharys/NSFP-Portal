@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NSFP — Secure Login | National Scheme Fraud Portal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body.login-body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: 'DM Sans', sans-serif;
+            background: #020817;
+            overflow: hidden;
+            position: relative;
+        }
+
+        /* Animated background grid */
+        .bg-grid {
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(255,165,0,0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255,165,0,0.04) 1px, transparent 1px);
+            background-size: 60px 60px;
+            animation: gridMove 20s linear infinite;
+        }
+
+        @keyframes gridMove {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(60px); }
+        }
+
+        /* Glow orbs */
+        .orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0.12;
+            pointer-events: none;
+        }
+        .orb-1 { width: 500px; height: 500px; background: #FF6B00; top: -100px; left: -100px; animation: orbFloat 8s ease-in-out infinite; }
+        .orb-2 { width: 400px; height: 400px; background: #003399; bottom: -100px; right: -100px; animation: orbFloat 10s ease-in-out infinite reverse; }
+        .orb-3 { width: 300px; height: 300px; background: #FFD700; top: 50%; left: 50%; transform: translate(-50%,-50%); animation: orbPulse 5s ease-in-out infinite; }
+
+        @keyframes orbFloat { 0%,100%{transform:translate(0,0);} 50%{transform:translate(30px,-30px);} }
+        @keyframes orbPulse { 0%,100%{opacity:0.08;} 50%{opacity:0.18;} }
+
+        /* Login container */
+        .login-wrapper {
+            position: relative;
+            z-index: 10;
+            display: flex;
+            gap: 0;
+            width: 900px;
+            max-width: 95vw;
+            border-radius: 24px;
+            overflow: hidden;
+            box-shadow: 0 0 0 1px rgba(255,165,0,0.15), 0 40px 80px rgba(0,0,0,0.8), 0 0 100px rgba(255,100,0,0.08);
+            animation: slideUp 0.8s cubic-bezier(0.16,1,0.3,1) both;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(40px) scale(0.97); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        /* Left panel — emblem */
+        .login-emblem-panel {
+            width: 340px;
+            min-width: 340px;
+            background: linear-gradient(160deg, #0a0f1e 0%, #0d1a3a 50%, #0a0f1e 100%);
+            border-right: 1px solid rgba(255,165,0,0.15);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 50px 30px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .login-emblem-panel::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: radial-gradient(circle at 50% 40%, rgba(255,165,0,0.08) 0%, transparent 70%);
+        }
+
+        .emblem-ring {
+            width: 160px; height: 160px;
+            border-radius: 50%;
+            border: 1px solid rgba(255,165,0,0.2);
+            display: flex; align-items: center; justify-content: center;
+            position: relative;
+            margin-bottom: 28px;
+            animation: ringPulse 3s ease-in-out infinite;
+        }
+
+        .emblem-ring::before {
+            content: '';
+            position: absolute;
+            inset: 6px;
+            border-radius: 50%;
+            border: 1px solid rgba(255,165,0,0.1);
+        }
+
+        @keyframes ringPulse { 0%,100%{box-shadow:0 0 0 0 rgba(255,165,0,0.1);} 50%{box-shadow:0 0 30px 10px rgba(255,165,0,0.08);} }
+
+        .emblem-ring img {
+            width: 110px;
+            height: 110px;
+            object-fit: contain;
+            filter: drop-shadow(0 0 20px rgba(255,165,0,0.4));
+        }
+
+        .portal-title {
+            font-family: 'Cinzel', serif;
+            font-size: 14px;
+            font-weight: 700;
+            color: #FFD700;
+            letter-spacing: 3px;
+            text-align: center;
+            text-transform: uppercase;
+            line-height: 1.8;
+            margin-bottom: 10px;
+        }
+
+        .portal-subtitle {
+            font-size: 11px;
+            color: rgba(255,255,255,0.35);
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            text-align: center;
+        }
+
+        .emblem-divider {
+            width: 60px; height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255,165,0,0.5), transparent);
+            margin: 20px 0;
+        }
+
+        .emblem-tagline {
+            font-size: 10px;
+            color: rgba(255,165,0,0.4);
+            letter-spacing: 1.5px;
+            text-align: center;
+            font-style: italic;
+        }
+
+        .satyamev-text {
+            font-size: 18px;
+            color: rgba(255,200,50,0.6);
+            margin-top: 6px;
+            letter-spacing: 2px;
+        }
+
+        /* Right panel — form */
+        .login-form-panel {
+            flex: 1;
+            background: #060d1f;
+            padding: 55px 48px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .form-header {
+            margin-bottom: 36px;
+        }
+
+        .form-header .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            background: rgba(255,165,0,0.1);
+            border: 1px solid rgba(255,165,0,0.2);
+            color: #FFB347;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            padding: 5px 12px;
+            border-radius: 100px;
+            margin-bottom: 16px;
+        }
+
+        .form-header .badge::before {
+            content: '';
+            width: 6px; height: 6px;
+            border-radius: 50%;
+            background: #FFB347;
+            animation: blink 1.5s ease-in-out infinite;
+        }
+
+        @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.3;} }
+
+        .form-header h1 {
+            font-family: 'Cinzel', serif;
+            font-size: 26px;
+            font-weight: 900;
+            color: #fff;
+            line-height: 1.2;
+            margin-bottom: 8px;
+        }
+
+        .form-header h1 span { color: #FFD700; }
+
+        .form-header p {
+            color: rgba(255,255,255,0.35);
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        /* Input fields */
+        .field-group {
+            margin-bottom: 16px;
+        }
+
+        .field-group label {
+            display: block;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: rgba(255,255,255,0.4);
+            margin-bottom: 8px;
+        }
+
+        .field-wrap {
+            position: relative;
+        }
+
+        .field-icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 14px;
+            opacity: 0.5;
+        }
+
+        .field-group input {
+            width: 100%;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 10px;
+            padding: 14px 16px 14px 44px;
+            font-family: 'DM Sans', sans-serif;
+            font-size: 14px;
+            color: #fff;
+            transition: all 0.3s ease;
+            outline: none;
+        }
+
+        .field-group input::placeholder { color: rgba(255,255,255,0.2); }
+
+        .field-group input:focus {
+            border-color: rgba(255,165,0,0.5);
+            background: rgba(255,165,0,0.05);
+            box-shadow: 0 0 0 3px rgba(255,165,0,0.08);
+        }
+
+        /* Login button */
+        .login-btn {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #FF6B00, #FFD700);
+            border: none;
+            border-radius: 10px;
+            font-family: 'Cinzel', serif;
+            font-size: 13px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            color: #000;
+            cursor: pointer;
+            margin-top: 8px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .login-btn::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, rgba(255,255,255,0.2), transparent);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .login-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(255,165,0,0.3);
+        }
+
+        .login-btn:hover::before { opacity: 1; }
+        .login-btn:active { transform: translateY(0); }
+
+        .secure-notice {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-top: 20px;
+            padding: 12px 16px;
+            background: rgba(0,255,100,0.04);
+            border: 1px solid rgba(0,255,100,0.1);
+            border-radius: 8px;
+        }
+
+        .secure-notice span {
+            font-size: 11px;
+            color: rgba(255,255,255,0.3);
+            letter-spacing: 0.5px;
+        }
+
+        .secure-dot { font-size: 16px; }
+
+        .form-footer {
+            margin-top: 24px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+            font-size: 11px;
+            color: rgba(255,255,255,0.2);
+            text-align: center;
+            letter-spacing: 0.5px;
+        }
+
+        .form-footer b { color: rgba(255,165,0,0.5); }
+
+        /* Error message */
+        .error-msg {
+            background: rgba(220,38,38,0.1);
+            border: 1px solid rgba(220,38,38,0.3);
+            border-radius: 8px;
+            padding: 10px 14px;
+            font-size: 13px;
+            color: #fca5a5;
+            margin-bottom: 16px;
+            display: none;
+        }
+
+        @media (max-width: 700px) {
+            .login-emblem-panel { display: none; }
+            .login-form-panel { padding: 40px 28px; }
+        }
+    </style>
+</head>
+<body class="login-body">
+
+<div class="bg-grid"></div>
+<div class="orb orb-1"></div>
+<div class="orb orb-2"></div>
+<div class="orb orb-3"></div>
+
+<div class="login-wrapper">
+
+    <!-- LEFT: Emblem Panel -->
+    <div class="login-emblem-panel">
+        <div class="emblem-ring">
+            <img src="{{ url_for('static', filename='logo-mark.png') }}" alt="Emblem of India">
+        </div>
+        <div class="portal-title">National Scheme<br>Fraud Portal</div>
+        <div class="emblem-divider"></div>
+        <div class="emblem-tagline" style="margin-top:14px;">Government of India<br>AI-Powered Fraud Detection</div>
+        <div class="emblem-divider" style="margin-top:20px;"></div>
+        <div style="display:flex;gap:16px;margin-top:8px;">
+            <div style="text-align:center;">
+                <div style="font-family:'Cinzel',serif;font-size:18px;color:#FFD700;font-weight:700;">95%</div>
+                <div style="font-size:10px;color:rgba(255,255,255,0.3);letter-spacing:1px;margin-top:2px;">ACCURACY</div>
+            </div>
+            <div style="width:1px;background:rgba(255,255,255,0.1);"></div>
+            <div style="text-align:center;">
+                <div style="font-family:'Cinzel',serif;font-size:18px;color:#FFD700;font-weight:700;">AI</div>
+                <div style="font-size:10px;color:rgba(255,255,255,0.3);letter-spacing:1px;margin-top:2px;">POWERED</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT: Form Panel -->
+    <div class="login-form-panel">
+        <div class="form-header">
+            <div class="badge">Secure Access</div>
+            <h1>Admin <span>Login</span></h1>
+            <p>Authorized government personnel only.<br>All access is monitored and logged.</p>
+        </div>
+
+        <div class="error-msg" id="errorMsg" {% if error %}style="display:block;"{% endif %}>
+            {% if error %}{{ error }}{% else %}Invalid credentials. Please try again.{% endif %}
+        </div>
+
+        <form action="/login" method="post" id="loginForm">
+            <div class="field-group">
+                <label>Username</label>
+                <div class="field-wrap">
+                    <span class="field-icon">👤</span>
+                    <input type="text" name="username" placeholder="Enter admin username" required autocomplete="username">
+                </div>
+            </div>
+
+            <div class="field-group">
+                <label>Password</label>
+                <div class="field-wrap">
+                    <span class="field-icon">🔑</span>
+                    <input type="password" name="password" placeholder="Enter your password" required autocomplete="current-password">
+                </div>
+            </div>
+
+            <button type="submit" class="login-btn">ACCESS PORTAL</button>
+        </form>
+
+        <div class="secure-notice">
+            <span class="secure-dot">🔒</span>
+            <span>256-bit SHA encrypted · Session monitored · Unauthorized access is a criminal offence under IT Act 2000</span>
+        </div>
+
+        <div class="form-footer">
+            © 2026 &nbsp;|&nbsp; Developed by <b>Sona Choudhary</b> &nbsp;|&nbsp; NSFP v2.0
+        </div>
+    </div>
+
+</div>
+
+<script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>

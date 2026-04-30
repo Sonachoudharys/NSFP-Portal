@@ -1,0 +1,29 @@
+# ============================================================
+# NATIONAL SCHEME FRAUD PORTAL — NSFP v2.0
+# requirements.txt | Developed by Sona Choudhary | 2026
+# ============================================================
+
+# Web Framework
+Flask==3.0.3
+Werkzeug==3.0.3
+gunicorn==22.0.0
+
+# Database
+mysql-connector-python==8.4.0
+SQLAlchemy==2.0.31
+
+# Data & AI
+pandas==2.2.2
+scikit-learn==1.5.1
+joblib==1.4.2
+numpy==1.26.4
+
+# PDF Generation
+fpdf2==2.7.9
+
+# Visualization (for training charts)
+matplotlib==3.9.1
+seaborn==0.13.2
+
+# Optional: Plotly for advanced charts
+plotly==5.22.0

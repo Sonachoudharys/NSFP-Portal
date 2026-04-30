@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+.env
+.venv/
+venv/
+reports/*.pdf
+static/model_metrics.json
+*.log
+.DS_Store
+

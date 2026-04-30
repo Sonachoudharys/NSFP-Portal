@@ -1,0 +1,73 @@
+{% extends "layout.html" %}
+{% block content %}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">🗺 State-wise <span>Fraud Heatmap</span></h1>
+        <p class="page-desc">Geographical distribution of AI-detected fraud cases across Indian states</p>
+    </div>
+</div>
+
+<!-- ALERT BANNER -->
+<div class="alert-banner">
+    <span>⚠️</span>
+    <span>This heatmap reflects AI model predictions. Data is updated in real-time as new beneficiaries are added.</span>
+</div>
+
+<!-- TABLE -->
+<div class="panel">
+    <div class="panel-header">
+        <h3>📍 State-wise Fraud Count</h3>
+        <span class="panel-badge">Live Data</span>
+    </div>
+    <div class="table-scroll heatmap-table">
+        {{ table|safe }}
+    </div>
+</div>
+
+<!-- Visual bar chart per state -->
+<div class="panel" style="margin-top:20px;">
+    <div class="panel-header"><h3>📊 Fraud Distribution by State</h3></div>
+    <div class="chart-container">
+        <canvas id="heatmapChart"></canvas>
+    </div>
+</div>
+
+<script>
+// Parse the table data for a chart
+const rows = document.querySelectorAll('.heatmap-table table tbody tr');
+const labels = [], values = [];
+rows.forEach(row => {
+    const cells = row.querySelectorAll('td');
+    if (cells.length >= 2) {
+        labels.push(cells[0].textContent.trim());
+        values.push(parseInt(cells[1].textContent) || 0);
+    }
+});
+
+if (labels.length > 0) {
+    new Chart(document.getElementById('heatmapChart'), {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Fraud Cases',
+                data: values,
+                backgroundColor: values.map(v => v > 5 ? '#ef4444' : v > 2 ? '#f97316' : '#eab308'),
+                borderRadius: 8,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'var(--text-muted)' } },
+                y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: 'var(--text-muted)', stepSize: 1 } }
+            }
+        }
+    });
+}
+</script>
+
+{% endblock %}
