@@ -38,10 +38,14 @@ logging.basicConfig(
 logger = logging.getLogger("NSFP")
 
 # ─── CONFIGURATION ──────────────────────────────────────────
+def running_on_railway():
+    return bool(os.getenv("RAILWAY_ENVIRONMENT") or os.getenv("RAILWAY_PROJECT_ID"))
+
+
 def load_database_config():
     """Read database settings from local env vars or Railway MySQL variables."""
     database_url = None
-    for env_name in ("MYSQL_URL", "MYSQL_PUBLIC_URL", "DATABASE_URL"):
+    for env_name in ("MYSQL_URL", "MYSQL_PRIVATE_URL", "MYSQL_PUBLIC_URL", "DATABASE_URL"):
         candidate = os.getenv(env_name)
         if not candidate:
             continue
@@ -59,6 +63,15 @@ def load_database_config():
             "user": unquote(parsed.username or "root"),
             "password": unquote(parsed.password or ""),
             "database": (parsed.path or "/gov_ai_fraud").lstrip("/"),
+        }
+
+    if running_on_railway() or os.getenv("MYSQLHOST"):
+        return {
+            "host": os.getenv("MYSQLHOST") or os.getenv("DB_HOST") or "localhost",
+            "port": int(os.getenv("MYSQLPORT") or os.getenv("DB_PORT") or "3306"),
+            "user": os.getenv("MYSQLUSER") or os.getenv("DB_USER") or "root",
+            "password": os.getenv("MYSQLPASSWORD") or os.getenv("DB_PASS") or "root@123",
+            "database": os.getenv("MYSQLDATABASE") or os.getenv("DB_NAME") or "railway",
         }
 
     return {
@@ -86,6 +99,16 @@ class Config:
     STATIC_DIR = "static"
     DATA_PATH = "fraud_output.csv"
     MODEL_PATH = "fraud_model.pkl"
+
+
+def database_config_summary():
+    return f"host={Config.DB_HOST}, port={Config.DB_PORT}, user={Config.DB_USER}, database={Config.DB_NAME}"
+
+
+def login_database_error_message():
+    if running_on_railway() and Config.DB_HOST in ("localhost", "127.0.0.1"):
+        return "Railway MySQL is not connected. Add a MySQL service and redeploy."
+    return "Database connection error. Try again."
 
 # ─── FLASK APP ───────────────────────────────────────────────
 app = Flask(__name__)
@@ -263,6 +286,7 @@ def beneficiary_created_at_select(cur):
 def initialize_database():
     """Best-effort startup schema repair for Railway and local deployments."""
     try:
+        logger.info("Database config: %s", database_config_summary())
         db = get_db()
         ensure_database_schema(db)
         db.close()
@@ -499,8 +523,8 @@ def login():
         cur.close()
         db.close()
     except Exception as e:
-        logger.error(f"DB error on login: {e}")
-        return render_template("login.html", error="Database connection error. Try again.")
+        logger.error(f"DB error on login ({database_config_summary()}): {e}")
+        return render_template("login.html", error=login_database_error_message())
 
     if row:
         hashed = hashlib.sha256(password.encode()).hexdigest()
