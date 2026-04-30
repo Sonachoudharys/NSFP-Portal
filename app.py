@@ -21,7 +21,7 @@ import joblib
 from fpdf import FPDF
 from PIL import Image, ImageDraw, ImageFont
 from sqlalchemy import create_engine
-from urllib.parse import quote_plus
+from urllib.parse import quote_plus, unquote, urlparse
 from sklearn.ensemble import IsolationForest
 from sklearn.metrics import (
     accuracy_score, confusion_matrix, f1_score,
@@ -37,11 +37,42 @@ logging.basicConfig(
 logger = logging.getLogger("NSFP")
 
 # ─── CONFIGURATION ──────────────────────────────────────────
+def load_database_config():
+    """Read database settings from local env vars or Railway MySQL variables."""
+    database_url = (
+        os.getenv("DATABASE_URL")
+        or os.getenv("MYSQL_URL")
+        or os.getenv("MYSQL_PUBLIC_URL")
+    )
+
+    if database_url:
+        parsed = urlparse(database_url)
+        return {
+            "host": parsed.hostname or "localhost",
+            "port": parsed.port or 3306,
+            "user": unquote(parsed.username or "root"),
+            "password": unquote(parsed.password or ""),
+            "database": (parsed.path or "/gov_ai_fraud").lstrip("/"),
+        }
+
+    return {
+        "host": os.getenv("DB_HOST") or os.getenv("MYSQLHOST") or "localhost",
+        "port": int(os.getenv("DB_PORT") or os.getenv("MYSQLPORT") or "3306"),
+        "user": os.getenv("DB_USER") or os.getenv("MYSQLUSER") or "root",
+        "password": os.getenv("DB_PASS") or os.getenv("MYSQLPASSWORD") or "root@123",
+        "database": os.getenv("DB_NAME") or os.getenv("MYSQLDATABASE") or "gov_ai_fraud",
+    }
+
+
+DB_CONFIG = load_database_config()
+
+
 class Config:
-    DB_HOST   = os.getenv("DB_HOST",   "localhost")
-    DB_USER   = os.getenv("DB_USER",   "root")
-    DB_PASS   = os.getenv("DB_PASS",   "root@123")
-    DB_NAME   = os.getenv("DB_NAME",   "gov_ai_fraud")
+    DB_HOST   = DB_CONFIG["host"]
+    DB_PORT   = DB_CONFIG["port"]
+    DB_USER   = DB_CONFIG["user"]
+    DB_PASS   = DB_CONFIG["password"]
+    DB_NAME   = DB_CONFIG["database"]
     SECRET    = os.getenv("SECRET_KEY","nsfp_gov_secret_2026_sona")
     REPORTS_DIR = "reports"
     STATIC_DIR = "static"
@@ -63,6 +94,7 @@ def get_db():
     """Return a fresh MySQL connection."""
     return mysql.connector.connect(
         host=Config.DB_HOST,
+        port=Config.DB_PORT,
         user=Config.DB_USER,
         password=Config.DB_PASS,
         database=Config.DB_NAME,
@@ -90,8 +122,8 @@ def beneficiary_created_at_select(cur):
 
 # SQLAlchemy engine for pandas read_sql
 _db_url = (
-    f"mysql+mysqlconnector://{Config.DB_USER}:"
-    f"{quote_plus(Config.DB_PASS)}@{Config.DB_HOST}/{Config.DB_NAME}"
+    f"mysql+mysqlconnector://{quote_plus(Config.DB_USER)}:"
+    f"{quote_plus(Config.DB_PASS)}@{Config.DB_HOST}:{Config.DB_PORT}/{Config.DB_NAME}"
 )
 engine = create_engine(_db_url, pool_pre_ping=True)
 
