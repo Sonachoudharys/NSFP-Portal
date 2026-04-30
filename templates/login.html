@@ -463,7 +463,8 @@
     const passwordToggle = document.getElementById("passwordToggle");
 
     if (passwordInput && passwordToggle) {
-        passwordToggle.addEventListener("click", function () {
+        passwordToggle.addEventListener("click", function (e) {
+            e.preventDefault();
             const isHidden = passwordInput.type === "password";
             passwordInput.type = isHidden ? "text" : "password";
             passwordToggle.textContent = isHidden ? "🙈" : "👁";

@@ -130,6 +130,25 @@ def get_db():
         )
 
 
+def column_exists(cur, table_name, column_name):
+    """Return whether a column exists in the configured database."""
+    cur.execute("""
+        SELECT COUNT(*) AS col_count
+        FROM information_schema.columns
+        WHERE table_schema = %s
+          AND table_name = %s
+          AND column_name = %s
+    """, (Config.DB_NAME, table_name, column_name))
+    row = cur.fetchone()
+    return row[0] > 0
+
+
+def ensure_column(cur, table_name, column_name, column_definition):
+    """Add a missing column without disturbing existing data."""
+    if not column_exists(cur, table_name, column_name):
+        cur.execute(f"ALTER TABLE `{table_name}` ADD COLUMN `{column_name}` {column_definition}")
+
+
 def ensure_database_schema(db):
     """Create the small app schema if Railway MySQL starts empty."""
     cur = db.cursor()
@@ -182,6 +201,14 @@ def ensure_database_schema(db):
             INDEX idx_time (logged_at)
         ) ENGINE=InnoDB
     """)
+
+    ensure_column(cur, "states", "state_code", "VARCHAR(5)")
+    ensure_column(cur, "states", "created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+    ensure_column(cur, "admin_users", "full_name", "VARCHAR(100)")
+    ensure_column(cur, "admin_users", "last_login", "TIMESTAMP NULL")
+    ensure_column(cur, "beneficiaries", "confidence_score", "FLOAT")
+    ensure_column(cur, "beneficiaries", "created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP")
+    ensure_column(cur, "beneficiaries", "updated_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP")
 
     states = [
         ("Rajasthan", "RJ"),
@@ -429,8 +456,13 @@ def login_page():
     return render_template("login.html")
 
 
-@app.route("/login", methods=["POST"])
+@app.route("/login", methods=["GET", "POST"])
 def login():
+    if request.method == "GET":
+        if "admin" in session:
+            return redirect(url_for("dashboard"))
+        return render_template("login.html")
+    
     username = request.form.get("username", "").strip()
     password = request.form.get("password", "")
 
